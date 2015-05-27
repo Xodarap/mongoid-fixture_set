@@ -18,15 +18,24 @@ module Mongoid
       included do
         class_attribute :fixture_path, :instance_writer => false
         class_attribute :fixture_set_names
+        class_attribute :fixture_class_names
         class_attribute :load_fixtures_once
         class_attribute :cached_fixtures
 
         self.fixture_set_names = []
         self.load_fixtures_once = false
         self.cached_fixtures = nil
+
+        self.fixture_class_names = Hash.new do |h, fixture_set_name|
+          h[fixture_set_name] = Mongoid::FixtureSet.default_fixture_model_name(fixture_set_name)
+        end
       end
 
       module ClassMethods
+       def set_fixture_class(class_names = {})
+         self.fixture_class_names = self.fixture_class_names.merge(class_names.stringify_keys)
+       end
+
        def fixtures(*fixture_set_names)
          if fixture_set_names.first == :all
            fixture_set_names = Dir["#{fixture_path}/{**,*}/*.{yml}"]
@@ -88,7 +97,7 @@ module Mongoid
           self.class.fixtures(:all)
           fixture_set_names = self.class.fixture_set_names
         end
-        fixtures = Mongoid::FixtureSet.create_fixtures(fixture_path, fixture_set_names)
+        Mongoid::FixtureSet.create_fixtures(fixture_path, fixture_set_names, fixture_class_names)
       end
 
       def loaded_fixtures=(fixtures)
