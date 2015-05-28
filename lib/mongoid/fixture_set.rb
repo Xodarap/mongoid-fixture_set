@@ -95,8 +95,6 @@ module Mongoid
       end
 
       def update_document(document, attributes)
-        attributes.delete('_id') if document.attributes.has_key?('_id')
-
         keys = (attributes.keys + document.attributes.keys).uniq
         keys.each do |key|
           if attributes[key].is_a?(Array) || document[key].is_a?(Array)
@@ -151,6 +149,10 @@ module Mongoid
         end
       end
 
+      def identify(label)
+        Digest::SHA256.hexdigest(label.to_s)[0,24]
+      end
+
       def find_or_create_document(model, fixture_name)
         model = model.constantize if model.is_a? String
 
@@ -158,6 +160,7 @@ module Mongoid
         if document.nil?
           document = model.new
           document['__fixture_name'] = fixture_name
+          document['_id'] = Mongoid::FixtureSet.identify(fixture_name)
           document.save(validate: false)
         end
         return document
