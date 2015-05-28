@@ -100,7 +100,7 @@ module Mongoid
           if attributes[key].is_a?(Array) || document[key].is_a?(Array)
             document[key] = Array(attributes[key]) + Array(document[key])
           else
-            document[key] = attributes[key] || document[key]
+            document[key] = attributes[key] unless attributes[key].nil?
           end
         end
         sanitize_new_embedded_documents(document)
