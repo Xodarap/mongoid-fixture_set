@@ -6,7 +6,7 @@ module Mongoid
       extend ActiveSupport::Concern
 
       def before_setup
-        setup_fixtures
+        setup_fixtures unless self.no_fixtures
         super
       end
 
@@ -21,6 +21,7 @@ module Mongoid
         class_attribute :fixture_class_names
         class_attribute :load_fixtures_once
         class_attribute :cached_fixtures
+        class_attribute :no_fixtures
 
         self.fixture_set_names = []
         self.load_fixtures_once = false
@@ -40,6 +41,8 @@ module Mongoid
          if fixture_set_names.first == :all
            fixture_set_names = Dir["#{fixture_path}/{**,*}/*.{yml}"]
            fixture_set_names.map! { |f| f[(fixture_path.to_s.size + 1)..-5] }
+         elsif fixture_set_names.first == :none
+           self.no_fixtures = true
          else
            fixture_set_names = fixture_set_names.flatten.map(&:to_s)
          end
