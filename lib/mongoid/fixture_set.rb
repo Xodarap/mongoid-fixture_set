@@ -88,8 +88,6 @@ module Mongoid
       end
 
       def create_or_update_document(model, attributes)
-        model = model.constantize if model.is_a? String
-
         document = find_or_create_document(model, attributes['__fixture_name'])
         update_document(document, attributes)
       end
@@ -98,7 +96,7 @@ module Mongoid
         keys = (attributes.keys + document.attributes.keys).uniq
         keys.each do |key|
           if attributes[key].is_a?(Array) || document[key].is_a?(Array)
-            document[key] = Array(attributes[key]) + Array(document[key])
+            document[key] = Array(attributes[key]) | Array(document[key])
           else
             document[key] = attributes[key] unless attributes[key].nil?
           end
