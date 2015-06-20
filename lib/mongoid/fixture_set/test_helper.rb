@@ -76,6 +76,14 @@ module Mongoid
        end
       end
 
+      def hotload_fixtures(*fixture_set_names)
+        self.class.setup_fixture_accessors(fixture_set_names)
+        fixtures = Mongoid::FixtureSet.create_fixtures(fixture_path, fixture_set_names, fixture_class_names)
+        hash_fixtures = self.hash_fixtures(fixtures)
+        @loaded_fixtures = @loaded_fixtures.merge(hash_fixtures)
+        self.class.cached_fixtures = @loaded_fixtures
+      end
+
       def setup_fixtures
         @fixture_cache = {}
 
@@ -93,7 +101,7 @@ module Mongoid
         Mongoid::FixtureSet.reset_cache
       end
 
-      private
+      protected
       def load_fixtures
         fixture_set_names = self.class.fixture_set_names
         if fixture_set_names.empty?
@@ -101,6 +109,10 @@ module Mongoid
           fixture_set_names = self.class.fixture_set_names
         end
         Mongoid::FixtureSet.create_fixtures(fixture_path, fixture_set_names, fixture_class_names)
+      end
+
+      def hash_fixtures(fixtures)
+        Hash[fixtures.dup.map { |f| [f.name, f] }]
       end
 
       def loaded_fixtures=(fixtures)
