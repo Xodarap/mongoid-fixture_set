@@ -6,7 +6,7 @@ module Mongoid
       extend ActiveSupport::Concern
 
       def before_setup
-        setup_fixtures
+        setup_fixtures unless self.no_fixtures
         super
       end
 
@@ -18,19 +18,31 @@ module Mongoid
       included do
         class_attribute :fixture_path, :instance_writer => false
         class_attribute :fixture_set_names
+        class_attribute :fixture_class_names
         class_attribute :load_fixtures_once
         class_attribute :cached_fixtures
+        class_attribute :no_fixtures
 
         self.fixture_set_names = []
         self.load_fixtures_once = false
         self.cached_fixtures = nil
+
+        self.fixture_class_names = Hash.new do |h, fixture_set_name|
+          h[fixture_set_name] = Mongoid::FixtureSet.default_fixture_model_name(fixture_set_name)
+        end
       end
 
       module ClassMethods
+       def set_fixture_class(class_names = {})
+         self.fixture_class_names = self.fixture_class_names.merge(class_names.stringify_keys)
+       end
+
        def fixtures(*fixture_set_names)
          if fixture_set_names.first == :all
            fixture_set_names = Dir["#{fixture_path}/{**,*}/*.{yml}"]
            fixture_set_names.map! { |f| f[(fixture_path.to_s.size + 1)..-5] }
+         elsif fixture_set_names.first == :none
+           self.no_fixtures = true
          else
            fixture_set_names = fixture_set_names.flatten.map(&:to_s)
          end
@@ -64,6 +76,14 @@ module Mongoid
        end
       end
 
+      def hotload_fixtures(*fixture_set_names)
+        self.class.setup_fixture_accessors(fixture_set_names)
+        fixtures = Mongoid::FixtureSet.create_fixtures(fixture_path, fixture_set_names, fixture_class_names)
+        hash_fixtures = self.hash_fixtures(fixtures)
+        @loaded_fixtures = @loaded_fixtures.merge(hash_fixtures)
+        self.class.cached_fixtures = @loaded_fixtures
+      end
+
       def setup_fixtures
         @fixture_cache = {}
 
@@ -81,14 +101,18 @@ module Mongoid
         Mongoid::FixtureSet.reset_cache
       end
 
-      private
+      protected
       def load_fixtures
         fixture_set_names = self.class.fixture_set_names
         if fixture_set_names.empty?
           self.class.fixtures(:all)
           fixture_set_names = self.class.fixture_set_names
         end
-        fixtures = Mongoid::FixtureSet.create_fixtures(fixture_path, fixture_set_names)
+        Mongoid::FixtureSet.create_fixtures(fixture_path, fixture_set_names, fixture_class_names)
+      end
+
+      def hash_fixtures(fixtures)
+        Hash[fixtures.dup.map { |f| [f.name, f] }]
       end
 
       def loaded_fixtures=(fixtures)
